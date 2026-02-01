@@ -1,4 +1,4 @@
-import { JUP_API_KEY, MINTS } from './config.js';
+import { JUP_API_KEY, MINTS, PRICE_CACHE_TTL_MS } from './config.js';
 
 const PRICE_API_BASE = 'https://api.jup.ag/price/v2';
 
@@ -9,11 +9,10 @@ const headers: Record<string, string> = JUP_API_KEY
 // Cache prices for a short duration to avoid hammering the API
 let cachedPrices: Record<string, number> = {};
 let cacheTime = 0;
-const CACHE_TTL_MS = 30_000; // 30 seconds
 
 export async function fetchPrices(): Promise<Record<string, number>> {
   const now = Date.now();
-  if (now - cacheTime < CACHE_TTL_MS && Object.keys(cachedPrices).length > 0) {
+  if (now - cacheTime < PRICE_CACHE_TTL_MS && Object.keys(cachedPrices).length > 0) {
     return cachedPrices;
   }
 
