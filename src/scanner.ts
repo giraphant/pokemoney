@@ -1,6 +1,7 @@
 import { getOrder, OrderResponse } from './ultra.js';
 import { getWallet } from './signer.js';
 import { PAIRS, AMOUNT_TIERS_USD, CARD_EV_USD } from './config.js';
+import { fetchPrices } from './prices.js';
 
 export interface Opportunity {
   pairLabel: string;
@@ -24,31 +25,23 @@ const TOKEN_DECIMALS: Record<string, number> = {
   '27G8MtK7VtTcCHkpASjSDdkWWYfoqT6ggEuKidVJidD4': 6,
 };
 
-// Rough USD prices for converting USD tiers to raw token amounts.
-// Exact values don't matter much — we care about the round-trip ratio.
-const APPROX_PRICES: Record<string, number> = {
-  'So11111111111111111111111111111111111111112': 200,
-  'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v': 1,
-  'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB': 1,
-  '27G8MtK7VtTcCHkpASjSDdkWWYfoqT6ggEuKidVJidD4': 4,
-};
-
-function toRawAmount(mint: string, usdAmount: number): string {
+function toRawAmount(mint: string, usdAmount: number, prices: Record<string, number>): string {
   const decimals = TOKEN_DECIMALS[mint] ?? 6;
-  const price = APPROX_PRICES[mint] ?? 1;
+  const price = prices[mint] ?? 1;
   const tokenAmount = usdAmount / price;
   return Math.floor(tokenAmount * 10 ** decimals).toString();
 }
 
 export async function scanOnce(): Promise<Opportunity[]> {
   const taker = getWallet().publicKey.toBase58();
+  const prices = await fetchPrices();
   const opportunities: Opportunity[] = [];
 
   for (const [mintA, mintB, multiplier] of PAIRS) {
     for (const usdTier of AMOUNT_TIERS_USD) {
       try {
-        const rawA = toRawAmount(mintA, usdTier);
-        const rawB = toRawAmount(mintB, usdTier);
+        const rawA = toRawAmount(mintA, usdTier, prices);
+        const rawB = toRawAmount(mintB, usdTier, prices);
 
         const [orderAB, orderBA] = await Promise.all([
           getOrder(mintA, mintB, rawA, taker),
